@@ -3,125 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECHO | Only the 50</title>
-    <!-- Supabase Library -->
+    <title>Echo | Only the 50</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; margin: 0; padding-bottom: 80px; }
-        header { position: sticky; top: 0; background: rgba(0,0,0,0.9); padding: 15px; border-bottom: 1px solid #222; text-align: center; z-index: 100; }
-        .feed { max-width: 500px; margin: 0 auto; padding: 10px; }
-        .post { background: #000; border: 1px solid #1a1a1a; margin-bottom: 25px; border-radius: 12px; overflow: hidden; }
-        .post-header { padding: 12px; font-weight: bold; font-size: 14px; }
-        video { width: 100%; aspect-ratio: 9/16; background: #111; object-fit: cover; }
-        .post-content { padding: 12px; }
-        .caption { font-size: 14px; margin-top: 5px; color: #efefef; }
+        :root { --ig-blue: #0095f6; --bg: #000; --card: #121212; }
+        body { background: var(--bg); color: white; font-family: -apple-system, sans-serif; margin: 0; padding-bottom: 70px; }
         
-        /* Floating Upload Button */
-        .upload-trigger { position: fixed; bottom: 20px; right: 20px; background: #0095f6; color: white; 
-                           padding: 15px 25px; border-radius: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        /* Nav */
+        header { position: sticky; top: 0; background: var(--bg); padding: 15px; border-bottom: 1px solid #262626; text-align: center; z-index: 10; }
+        header h1 { font-style: italic; font-size: 24px; margin: 0; }
+
+        /* Feed */
+        .feed { max-width: 470px; margin: auto; }
+        .post { border-bottom: 1px solid #262626; margin-bottom: 15px; }
+        .post-user { padding: 12px; font-weight: 600; font-size: 14px; }
+        video { width: 100%; max-height: 580px; background: #000; }
+        .post-actions { padding: 12px; }
+        .caption { font-size: 14px; padding: 0 12px 15px; }
+
+        /* Upload UI */
+        .upload-card { background: var(--card); border: 1px solid #262626; border-radius: 8px; margin: 10px; padding: 15px; display: none; }
+        #progress-container { width: 100%; background: #262626; height: 5px; border-radius: 5px; margin: 10px 0; display: none; }
+        #progress-bar { width: 0%; background: var(--ig-blue); height: 100%; border-radius: 5px; transition: width 0.3s; }
         
-        /* Simple Modal for Upload */
-        #upload-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center; }
-        .modal-content { background: #1c1c1c; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: #262626; border: 1px solid #363636; color: white; border-radius: 5px; box-sizing: border-box; }
-        .post-btn { width: 100%; padding: 12px; background: #0095f6; border: none; color: white; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        input, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #363636; background: #262626; color: white; }
+        .share-btn { background: var(--ig-blue); border: none; font-weight: 600; cursor: pointer; }
+
+        /* Bottom Bar */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--bg); border-top: 1px solid #262626; display: flex; justify-content: center; padding: 15px; }
+        .add-btn { background: white; color: black; border-radius: 50%; width: 40px; height: 40px; border: none; font-size: 24px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <header>
-        <h2 style="margin:0; letter-spacing: 2px;">ECHO</h2>
-        <span style="font-size: 12px; color: #8e8e8e;">ONLY THE 50</span>
-    </header>
+<header><h1>Echo</h1></header>
 
-    <div class="feed" id="feed">
-        <!-- Posts will load here -->
-    </div>
+<div class="upload-card" id="upload-box">
+    <input type="text" id="username" placeholder="Username...">
+    <input type="text" id="caption" placeholder="Caption...">
+    <input type="file" id="file-input" accept="video/*">
+    <div id="progress-container"><div id="progress-bar"></div></div>
+    <div id="status-text" style="font-size: 12px; color: #8e8e8e; text-align: center;"></div>
+    <button class="share-btn" id="upload-btn" onclick="uploadVideo()">Share</button>
+</div>
 
-    <div class="upload-trigger" onclick="document.getElementById('upload-modal').style.display='flex'">+ New Post</div>
+<div class="feed" id="feed"></div>
 
-    <div id="upload-modal">
-        <div class="modal-content">
-            <h3 style="margin-top:0">Share to Echo</h3>
-            <input type="text" id="username" placeholder="Your Username">
-            <input type="text" id="caption" placeholder="Write a caption...">
-            <input type="file" id="file-input" accept="video/mp4,video/quicktime,image/*">
-            <button class="post-btn" id="submit-btn" onclick="handleUpload()">Share Reel</button>
-            <button class="post-btn" style="background:#333" onclick="document.getElementById('upload-modal').style.display='none'">Cancel</button>
-        </div>
-    </div>
+<div class="bottom-nav">
+    <button class="add-btn" onclick="toggleUpload()">+</button>
+</div>
 
-    <script>
-        // CONFIGURATION
-        const SB_URL = "https://fgagzbmgqyrkvnoizcvz.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnYWd6Ym1ncXlya3Zub2l6Y3Z6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMTExNjQsImV4cCI6MjA5Mzg4NzE2NH0.Z0IvSf_7T7mgPeAUECgVpaytvSxGjgLlDQ2p6aEwV6M";
-        const CLOUD_NAME = "doeibrv7f";
-        const UPLOAD_PRESET = "unsigned_upload";
+<script>
+    const SB_URL = "https://fgagzbmgqyrkvnoizcvz.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnYWd6Ym1ncXlya3Zub2l6Y3Z6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMTExNjQsImV4cCI6MjA5Mzg4NzE2NH0.Z0IvSf_7T7mgPeAUECgVpaytvSxGjgLlDQ2p6aEwV6M";
+    const CLOUD_NAME = "doeibrv7f";
+    const UPLOAD_PRESET = "unsigned_upload";
 
-        const supabase = supabase.createClient(SB_URL, SB_KEY);
+    const supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // 1. Fetch Posts from Supabase
-        async function loadPosts() {
-            const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
-            if (error) return console.log(error);
-            
-            const feed = document.getElementById('feed');
-            feed.innerHTML = '';
-            data.forEach(post => {
-                const postEl = document.createElement('div');
-                postEl.className = 'post';
-                postEl.innerHTML = `
-                    <div class="post-header">@${post.username}</div>
-                    <video src="${post.media_url}" controls loop muted playsinline></video>
-                    <div class="post-content">
-                        <div class="caption"><b>@${post.username}</b> ${post.caption}</div>
-                    </div>
-                `;
-                feed.appendChild(postEl);
-            });
-        }
+    function toggleUpload() {
+        const box = document.getElementById('upload-box');
+        box.style.display = box.style.display === 'block' ? 'none' : 'block';
+    }
 
-        // 2. Handle Video Upload
-        async function handleUpload() {
-            const file = document.getElementById('file-input').files[0];
-            const user = document.getElementById('username').value;
-            const caption = document.getElementById('caption').value;
-            const btn = document.getElementById('submit-btn');
+    async function uploadVideo() {
+        const file = document.getElementById('file-input').files[0];
+        const user = document.getElementById('username').value;
+        const cap = document.getElementById('caption').value;
+        const bar = document.getElementById('progress-bar');
+        const container = document.getElementById('progress-container');
+        const status = document.getElementById('status-text');
 
-            if (!file || !user) return alert("Fill in username and pick a video!");
-            
-            btn.innerText = "Uploading...";
-            btn.disabled = true;
+        if (!file || !user) return alert("Fill all fields!");
 
-            try {
-                // Upload to Cloudinary
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('upload_preset', UPLOAD_PRESET);
+        container.style.display = 'block';
+        status.innerText = "Sending to Cloudinary...";
 
-                const clRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const clData = await clRes.json();
-                
-                // Save to Supabase
-                const { error } = await supabase.from('posts').insert([
-                    { username: user, caption: caption, media_url: clData.secure_url }
-                ]);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', UPLOAD_PRESET);
 
-                if (error) throw error;
-                
-                location.reload(); // Refresh to see new post
-            } catch (err) {
-                alert("Error uploading: " + err.message);
-                btn.innerText = "Share Reel";
-                btn.disabled = false;
+        // Upload with Progress using XMLHttpRequest
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`, true);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                bar.style.width = percent + '%';
+                status.innerText = `Uploading: ${percent}%`;
             }
-        }
+        };
 
-        // Initial Load
-        loadPosts();
-    </script>
+        xhr.onload = async function() {
+            const res = JSON.parse(xhr.responseText);
+            status.innerText = "Saving to Echo Database...";
+            
+            const { error } = await supabase.from('posts').insert([
+                { username: user, caption: cap, media_url: res.secure_url }
+            ]);
+
+            if (error) {
+                alert("Supabase Error: Check RLS Policies!");
+                console.error(error);
+            } else {
+                location.reload();
+            }
+        };
+
+        xhr.send(formData);
+    }
+
+    async function loadFeed() {
+        const { data } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+        const feed = document.getElementById('feed');
+        data.forEach(p => {
+            feed.innerHTML += `
+                <div class="post">
+                    <div class="post-user">@${p.username}</div>
+                    <video src="${p.media_url}" autoplay muted loop playsinline></video>
+                    <div class="post-actions">❤️ 💬 ✈️</div>
+                    <div class="caption"><b>@${p.username}</b> ${p.caption}</div>
+                </div>`;
+        });
+    }
+    loadFeed();
+</script>
 </body>
 </html>
